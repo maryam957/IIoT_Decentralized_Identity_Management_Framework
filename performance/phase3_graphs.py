@@ -5,12 +5,13 @@ import matplotlib.pyplot as plt
 
 
 RESULTS_FILE = "performance_results/phase3_results.csv"
+BATCH_INDIVIDUAL_FILE = "performance_results/batch_vs_individual.csv"
 OUTPUT_DIRECTORY = "performance_results/graphs"
 
 
 def load_results():
     device_counts = []
-    registration_times = []
+    batch_processing_times = []
     verification_latencies = []
     verification_throughputs = []
 
@@ -18,36 +19,45 @@ def load_results():
         reader = csv.DictReader(file)
 
         for row in reader:
-            device_counts.append(int(row["device_count"]))
-            registration_times.append(float(row["registration_ms"]))
-            verification_latencies.append(float(row["verification_ms"]))
+            device_counts.append(
+                int(row["device_count"])
+            )
+
+            batch_processing_times.append(
+                float(row["batch_processing_ms"])
+            )
+
+            verification_latencies.append(
+                float(row["verification_ms"])
+            )
+
             verification_throughputs.append(
                 float(row["verification_throughput"])
             )
 
     return (
         device_counts,
-        registration_times,
+        batch_processing_times,
         verification_latencies,
         verification_throughputs,
     )
 
 
-def create_registration_graph(
+def create_batch_processing_graph(
     device_counts,
-    registration_times,
+    batch_processing_times,
 ):
     plt.figure(figsize=(8, 5))
 
     plt.plot(
         device_counts,
-        registration_times,
+        batch_processing_times,
         marker="o",
     )
 
     plt.xlabel("Number of Devices")
-    plt.ylabel("Total Registration Time (ms)")
-    plt.title("Devices vs Total Registration Time")
+    plt.ylabel("Batch Processing Time (ms)")
+    plt.title("Devices vs Batch Processing Time")
     plt.grid(True)
 
     plt.tight_layout()
@@ -55,7 +65,7 @@ def create_registration_graph(
     plt.savefig(
         os.path.join(
             OUTPUT_DIRECTORY,
-            "phase3_registration_time.png",
+            "phase3_batch_processing_time.png",
         ),
         dpi=300,
     )
@@ -121,7 +131,7 @@ def create_throughput_graph(
     )
 
     plt.close()
-    
+
 
 def create_batch_vs_individual_graph():
     device_counts = []
@@ -129,7 +139,7 @@ def create_batch_vs_individual_graph():
     individual_times = []
 
     with open(
-        "performance_results/batch_vs_individual.csv",
+        BATCH_INDIVIDUAL_FILE,
         "r",
         newline="",
     ) as file:
@@ -184,20 +194,22 @@ def create_batch_vs_individual_graph():
     plt.close()
 
 
-
 def main():
     (
         device_counts,
-        registration_times,
+        batch_processing_times,
         verification_latencies,
         verification_throughputs,
     ) = load_results()
 
-    os.makedirs(OUTPUT_DIRECTORY, exist_ok=True)
+    os.makedirs(
+        OUTPUT_DIRECTORY,
+        exist_ok=True,
+    )
 
-    create_registration_graph(
+    create_batch_processing_graph(
         device_counts,
-        registration_times,
+        batch_processing_times,
     )
 
     create_verification_graph(
@@ -209,16 +221,28 @@ def main():
         device_counts,
         verification_throughputs,
     )
-    
+
     create_batch_vs_individual_graph()
 
-    print("Phase 4 graphs generated successfully.")
+    print("Phase 3 graphs generated successfully.")
     print()
     print("Generated files:")
-    print(" - performance_results/graphs/phase3_registration_time.png")
-    print(" - performance_results/graphs/phase3_verification_latency.png")
-    print(" - performance_results/graphs/phase3_throughput.png")
-    print(" - performance_results/graphs/batch_vs_individual.png")
+    print(
+        " -",
+        "performance_results/graphs/phase3_batch_processing_time.png",
+    )
+    print(
+        " -",
+        "performance_results/graphs/phase3_verification_latency.png",
+    )
+    print(
+        " -",
+        "performance_results/graphs/phase3_throughput.png",
+    )
+    print(
+        " -",
+        "performance_results/graphs/batch_vs_individual.png",
+    )
 
 
 if __name__ == "__main__":
