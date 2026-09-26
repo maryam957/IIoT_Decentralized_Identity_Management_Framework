@@ -135,6 +135,102 @@ Revocation information is stored using the same SQLite connection used by
 the fog node so that Phase 1 and Phase 2 operate on shared system state.
 
 
+# Phase 3 Interface
+
+`phase3` implements permanent identity verification and normal resource
+authorization after a device has been included in a finalized Merkle epoch.
+
+Phase 3 keeps identity verification separate from authorization.
+
+## Permanent identity verification
+
+`phase3.verification.verify_identity()` verifies that the supplied DID and
+public key belong to a device included in the specified finalized epoch.
+
+The verifier:
+
+1. Recomputes the device leaf using the Phase 1 leaf encoding.
+2. Retrieves the device inclusion proof for the requested epoch.
+3. Checks that the recomputed leaf matches the registered leaf.
+4. Retrieves the trusted root for the epoch.
+5. Verifies the Merkle inclusion proof against the trusted root.
+
+The leaf is recomputed as:
+
+`SHA-256(did_utf8 + public_key_der)`
+
+A successful verification establishes permanent membership in that historical
+epoch.
+
+A valid historical proof does not by itself establish current authorization.
+
+## Identity verification interface
+
+The main verification function is:
+
+`verify_identity(fog, did, public_key_bytes, epoch_id)`
+
+It returns:
+
+`(True, "permanent identity verified")`
+
+when the identity is successfully verified.
+
+If verification fails, it returns:
+
+`(False, reason)`
+
+Possible rejection reasons include:
+
+* permanent inclusion proof not found
+* recomputed leaf does not match registered leaf
+* trusted epoch root not found
+* Merkle inclusion proof verification failed
+
+## Resource authorization
+
+`phase3.authorization.authorize()` performs the normal resource-access
+decision after permanent identity verification.
+
+The authorization interface is:
+
+`authorize(fog, did, public_key_bytes, epoch_id, resource, operation)`
+
+Authorization checks:
+
+* permanent identity verification
+* current device revocation status
+* role/resource policy
+* requested operation
+
+The function returns:
+
+`(True, reason)`
+
+for an allowed request and:
+
+`(False, reason)`
+
+for a denied request.
+
+Identity verification and authorization are intentionally separate. A device
+may have a valid historical Merkle proof but still be denied because its
+current status is revoked or its role is not permitted to perform the
+requested operation.
+
+## Revocation and Phase 3
+
+Revocation is checked during current authorization.
+
+A revoked device is denied even when it has a valid historical inclusion
+proof.
+
+This preserves the distinction between:
+
+`Historical membership != Current authorization`
+
+
+
 # Integrated Simulation Layer
 
 The `simulation` package connects the individual phase implementations into
@@ -244,12 +340,13 @@ authorized.
 
 # Automated Testing
 
-The implementation includes automated tests for the individual phase
-functionality and the integrated simulation.
+The implementation includes automated tests for the individual phases,
+integrated lifecycle behavior, Phase 3 verification and security scenarios.
 
 The tests cover behavior including:
 
 * device registration
+* proof of possession
 * temporary token issuance
 * valid provisional access
 * token signature validation
@@ -263,10 +360,22 @@ The tests cover behavior including:
 * batch finalization
 * provisional to permanent transition
 * Merkle proof generation and verification
+* permanent identity verification
+* tampered identity rejection
+* tampered Merkle proof rejection
+* permanent authorization
+* ALLOW/DENY access decisions
 * exclusion of revoked queued devices from a newly finalized active batch
 
-The current test suite contains 32 automated tests.
+The current complete test suite contains 47 automated tests.
 
+Run the complete suite with:
+
+`PYTHONPATH=. pytest -q`
+
+Phase 3 security scenarios can be run separately with:
+
+`PYTHONPATH=. pytest -q tests/test_phase3_security.py`
 
 # Performance Evaluation
 
@@ -323,3 +432,77 @@ Comparison results are stored in:
 Generated performance graphs are stored in:
 
 `performance_results/graphs/`
+
+
+# Performance Evaluation
+
+Phase 3 performance experiments are located in the `performance` package.
+
+The scalability experiment evaluates device populations of:
+
+`5, 10, 25, 50, 100`
+
+Each measurement is repeated 5 times and the results are averaged.
+
+Measurements include:
+
+* registration latency
+* average registration latency
+* batch processing time
+* proof-generation latency
+* identity verification latency
+* temporary-token validation latency
+* resource-access latency
+* registration throughput
+* verification throughput
+* total processing time
+
+Results are stored in:
+
+`performance_results/phase3_results.csv`
+
+## Phase 3 performance graphs
+
+The graph-generation script produces:
+
+* number of devices vs batch processing time
+* number of devices vs identity verification latency
+* number of devices vs verification throughput
+
+The generated graphs are stored in:
+
+`performance_results/graphs/`
+
+The graph files are:
+
+`phase3_batch_processing_time.png`
+
+`phase3_verification_latency.png`
+
+`phase3_throughput.png`
+
+## Batch versus individual registration
+
+A separate experiment compares the implemented batch registration approach
+with a per-device registration approach.
+
+The batch approach registers multiple devices and finalizes one batch.
+
+The individual approach finalizes registration separately for each device.
+
+The experiment compares processing time for:
+
+`5, 10, 25, 50, 100`
+
+devices.
+
+Results are stored in:
+
+`performance_results/batch_vs_individual.csv`
+
+The comparison graph is:
+
+`performance_results/graphs/batch_vs_individual.png`
+
+The experiment demonstrates the processing benefit of constructing and
+finalizing one batch instead of repeatedly finalizing individual devices.
