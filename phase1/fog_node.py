@@ -230,10 +230,7 @@ class FogNode:
 
         return result
 
-    def exclude_revoked_device(
-        self,
-        did: str,
-    ) -> bool:
+    def exclude_revoked_device(self, did: str) -> bool:
         """Remove a revoked pending device from the active batch."""
 
         row = self.connection.execute(
