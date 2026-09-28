@@ -35,7 +35,16 @@ def get_device_role(fog, did):
         return None
 
     metadata = json.loads(row["metadata"])
-    return metadata.get("role")
+
+    role = metadata.get("role")
+
+    if role is None:
+        role = metadata.get("device_type")
+
+    if role is None:
+        return None
+
+    return role.strip().lower().replace(" ", "_")
 
 
 def authorize(
